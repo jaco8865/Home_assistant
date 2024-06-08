@@ -1,0 +1,236 @@
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Scanner;
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
+
+public class App {
+    private static ArrayList<ToDoItem> toDoList = new ArrayList<>();
+    private static ArrayList<Contact> contactList = new ArrayList<>();
+    private static DateTimeFormatter dateFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
+
+    public static void main(String[] args) {
+        Scanner scanner = new Scanner(System.in);
+        while (true) {
+            System.out.println("\n1. View Calendar");
+            System.out.println("2. Add To-Do Item");
+            System.out.println("3. View To-Do List");
+            System.out.println("4. Add Contact");
+            System.out.println("5. View Contacts");
+            System.out.println("6. Exit");
+            System.out.print("Choose an option: ");
+            int choice = scanner.nextInt();
+            scanner.nextLine(); // Consume newline
+
+            switch (choice) {
+                case 1:
+                    viewCalendar();
+                    break;
+                case 2:
+                    addToDoItem(scanner);
+                    break;
+                case 3:
+                    viewToDoList();
+                    break;
+                case 4:
+                    addContact(scanner);
+                    break;
+                case 5:
+                    viewContacts();
+                    break;
+                case 6:
+                    System.out.println("Exiting...");
+                    return;
+                default:
+                    System.out.println("Invalid choice. Please try again.");
+            }
+        }
+    }
+
+    private static void viewCalendar() {
+        LocalDate currentDate = LocalDate.now();
+        System.out.println("Today's date: " + currentDate.format(dateFormatter));
+        System.out.println("Events today:");
+        for (Contact contact : contactList) {
+            List<String> events = contact.getEventsOnDate(currentDate);
+            if (!events.isEmpty()) {
+                System.out.println(contact.getName() + ": " + String.join(", ", events));
+            }
+        }
+        System.out.println("To-Do Items for today:");
+        for (ToDoItem item : toDoList) {
+            if (item.getDueDate() != null && item.getDueDate().equals(currentDate)) {
+                System.out.println(item);
+            }
+        }
+    }
+
+    private static void addToDoItem(Scanner scanner) {
+        System.out.print("Enter a to-do item: ");
+        String description = scanner.nextLine();
+        
+        System.out.print("Enter due date (yyyy-MM-dd) or press Enter to skip: ");
+        String dueDateInput = scanner.nextLine();
+        LocalDate dueDate = null;
+        if (!dueDateInput.isEmpty()) {
+            dueDate = LocalDate.parse(dueDateInput, dateFormatter);
+        }
+
+        System.out.print("Enter contact name to assign or press Enter to skip: ");
+        String contactName = scanner.nextLine();
+        Contact assignedContact = null;
+        if (!contactName.isEmpty()) {
+            for (Contact contact : contactList) {
+                if (contact.getName().equalsIgnoreCase(contactName)) {
+                    assignedContact = contact;
+                    break;
+                }
+            }
+            if (assignedContact == null) {
+                System.out.println("Contact not found. To-do item will not be assigned to any contact.");
+            }
+        }
+
+        ToDoItem item = new ToDoItem(description, dueDate, assignedContact);
+        toDoList.add(item);
+        System.out.println("To-do item added.");
+    }
+
+    private static void viewToDoList() {
+        System.out.println("\nTo-Do List:");
+        for (int i = 0; i < toDoList.size(); i++) {
+            System.out.println((i + 1) + ". " + toDoList.get(i));
+        }
+    }
+
+    private static void addContact(Scanner scanner) {
+        System.out.print("Enter contact name: ");
+        String name = scanner.nextLine();
+
+        System.out.print("Enter birthday (yyyy-MM-dd): ");
+        LocalDate birthday = LocalDate.parse(scanner.nextLine(), dateFormatter);
+
+        System.out.print("Enter anniversary (yyyy-MM-dd) or press Enter to skip: ");
+        String anniversaryInput = scanner.nextLine();
+        LocalDate anniversary = null;
+        if (!anniversaryInput.isEmpty()) {
+            anniversary = LocalDate.parse(anniversaryInput, dateFormatter);
+        }
+
+        Contact contact = new Contact(name, birthday, anniversary);
+
+        System.out.println("Enter special dates (yyyy-MM-dd) and descriptions, separated by a comma (e.g., 2024-07-04,Independence Day). Enter 'done' when finished:");
+        while (true) {
+            String specialDateInput = scanner.nextLine();
+            if (specialDateInput.equalsIgnoreCase("done")) {
+                break;
+            }
+            String[] parts = specialDateInput.split(",", 2);
+            if (parts.length == 2) {
+                LocalDate specialDate = LocalDate.parse(parts[0].trim(), dateFormatter);
+                String description = parts[1].trim();
+                contact.addSpecialDate(specialDate, description);
+            } else {
+                System.out.println("Invalid input. Please enter the date and description separated by a comma.");
+            }
+        }
+
+        contactList.add(contact);
+        System.out.println("Contact added.");
+    }
+
+    private static void viewContacts() {
+        System.out.println("\nContact List:");
+        for (Contact contact : contactList) {
+            System.out.println(contact);
+        }
+    }
+
+    static class Contact {
+        private String name;
+        private LocalDate birthday;
+        private LocalDate anniversary;
+        private List<SpecialDate> specialDates = new ArrayList<>();
+
+        public Contact(String name, LocalDate birthday, LocalDate anniversary) {
+            this.name = name;
+            this.birthday = birthday;
+            this.anniversary = anniversary;
+        }
+
+        public String getName() {
+            return name;
+        }
+
+        public void addSpecialDate(LocalDate date, String description) {
+            specialDates.add(new SpecialDate(date, description));
+        }
+
+        public List<String> getEventsOnDate(LocalDate date) {
+            List<String> events = new ArrayList<>();
+            if (birthday != null && birthday.getDayOfMonth() == date.getDayOfMonth() && birthday.getMonth() == date.getMonth()) {
+                events.add("Birthday");
+            }
+            if (anniversary != null && anniversary.getDayOfMonth() == date.getDayOfMonth() && anniversary.getMonth() == date.getMonth()) {
+                events.add("Anniversary");
+            }
+            for (SpecialDate specialDate : specialDates) {
+                if (specialDate.date.getDayOfMonth() == date.getDayOfMonth() && specialDate.date.getMonth() == date.getMonth()) {
+                    events.add(specialDate.description);
+                }
+            }
+            return events;
+        }
+
+        @Override
+        public String toString() {
+            StringBuilder sb = new StringBuilder();
+            sb.append("Name: ").append(name)
+              .append(", Birthday: ").append(birthday != null ? birthday.format(dateFormatter) : "N/A")
+              .append(", Anniversary: ").append(anniversary != null ? anniversary.format(dateFormatter) : "N/A");
+            for (SpecialDate specialDate : specialDates) {
+                sb.append(", Special Date: ").append(specialDate.date.format(dateFormatter))
+                  .append(" (").append(specialDate.description).append(")");
+            }
+            return sb.toString();
+        }
+
+        static class SpecialDate {
+            LocalDate date;
+            String description;
+
+            SpecialDate(LocalDate date, String description) {
+                this.date = date;
+                this.description = description;
+            }
+        }
+    }
+
+    static class ToDoItem {
+        private String description;
+        private LocalDate dueDate;
+        private Contact assignedContact;
+
+        public ToDoItem(String description, LocalDate dueDate, Contact assignedContact) {
+            this.description = description;
+            this.dueDate = dueDate;
+            this.assignedContact = assignedContact;
+        }
+
+        public LocalDate getDueDate() {
+            return dueDate;
+        }
+
+        @Override
+        public String toString() {
+            StringBuilder sb = new StringBuilder(description);
+            if (dueDate != null) {
+                sb.append(" (Due: ").append(dueDate.format(dateFormatter)).append(")");
+            }
+            if (assignedContact != null) {
+                sb.append(" [Assigned to: ").append(assignedContact.getName()).append("]");
+            }
+            return sb.toString();
+        }
+    }
+}
